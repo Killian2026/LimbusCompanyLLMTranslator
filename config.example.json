@@ -1,0 +1,20 @@
+{
+  "translation_settings": {
+    "origin_language": "jp",
+    "target_direction": "LCLT_zh",
+    "max_workers": 20,
+    "max_chars_per_batch": 2000
+  },
+  "file_paths": {
+    "input_direction": "<Puts your Game Directory Here>/Limbus Company/LimbusCompany_Data/Assets/Resources_moved/Localize",
+    "output_direction": "<Puts your Game Directory Here>/Limbus Company/LimbusCompany_Data/Lang"
+  },
+  "config_files": {
+    "models": "models.json",
+    "translation_configs": "translation_configs.json"
+  },
+  "options": {
+    "keep_backup_files": true,
+    "confirm_before_translation": true
+  }
+}

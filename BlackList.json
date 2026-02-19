@@ -1,0 +1,15 @@
+{
+    "BlackList": [
+        "id",
+        "usage",
+        "personalityid", 
+        "code",
+        "codeName",
+        "index",
+        "level",
+        "voicefile",
+        "icon",
+        "model",
+        "color"
+    ]
+}

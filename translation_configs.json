@@ -1,0 +1,54 @@
+{
+  "translation_strategies": [
+    {
+      "name": "bgm_lyrics",
+      "priority": 1,
+      "file_patterns": [
+        {"pattern": "BgmLyrics/*"}
+      ],
+      "model": "story",
+      "prompt_file": "prompts/bgm_lyrics_prompt.txt",
+      "memory_file": "memories/bgm_lyrics_memory.json"
+    },
+    {
+      "name": "story",
+      "priority": 2,
+      "file_patterns": [
+        {"pattern": "*BattleKeywords*", "extract_fields": ["flavor", "name"]},
+        {"pattern": "*Enemies*"},
+        {"pattern": "PersonalityVoiceDlg/*"},
+        {"pattern": "StoryData/*"},
+        {"pattern": "BattleAnnouncerDlgStoryData/*"},
+        {"pattern": "EGOVoiceDig/*"},
+        {"pattern": "PersonalityVoiceDlg/*"}
+      ],
+      "model": "story",
+      "prompt_file": "prompts/story_prompt.txt",
+      "memory_file": "memories/story_memory.json"
+    },
+    {
+      "name": "skill",
+      "priority": 3,
+      "file_patterns": [
+        {"pattern": "*Skills*"},
+        {"pattern": "*Bufs*"},
+        {"pattern": "*BattleKeywords*"},
+        {"pattern": "*DanteAbility*"},
+        {"pattern": "*EGOgifty*"}  
+      ],
+      "model": "skill",
+      "prompt_file": "prompts/skill_prompt.txt",
+      "memory_file": "memories/skill_memory.json"
+    },
+    {
+      "name": "default",
+      "priority": 999,
+      "file_patterns": [
+        {"pattern": "*"}
+      ],
+      "model": "origin",
+      "prompt_file": "prompts/default_prompt.txt",
+      "memory_file": "memories/default_memory.json"
+    }
+  ]
+}
