@@ -63,7 +63,8 @@ class Translator:
         return new_result, has_replacement
     
     def translate_batch_of_texts(self, batch_texts: List[str], prompt_template: str, api_key: str, 
-                               base_url: str, model: str, temperature: float, enable_thinking: bool = False) -> Dict[int, str]:
+                               base_url: str, model: str, temperature: float, enable_thinking: bool = False, 
+                               request_counter: Dict[str, int] = None) -> Dict[int, str]:
         """
         翻译一批文本
         """
@@ -96,14 +97,19 @@ class Translator:
         if enable_thinking:
             payload["thinking"] = True
 
+        # 增加请求计数
+        if request_counter is not None:
+            request_counter["count"] = request_counter.get("count", 0) + 1
+
         # 实现带有重试机制的API调用
-        max_retries = 3
+        max_retries = self.config.get("translation_settings", {}).get("max_retries", 3)
+        timeout = self.config.get("translation_settings", {}).get("timeout", 60)
         retry_count = 0
         session = self.get_session()
         
         while retry_count <= max_retries:
             try:
-                response = session.post(base_url, headers=headers, json=payload, timeout=60)
+                response = session.post(base_url, headers=headers, json=payload, timeout=timeout)
                 response.raise_for_status()
                 result = response.json()
                 ai_response = result['choices'][0]['message']['content'].strip()
@@ -170,7 +176,8 @@ class Translator:
     
     def process_batch(self, batch_indices: List[int], pre_translated_texts: List[str], 
                      need_api_translation_flags: List[bool], prompt_template: str, 
-                     api_key: str, base_url: str, model: str, temperature: float, enable_thinking: bool = False) -> Tuple[Dict[int, str], bool]:
+                     api_key: str, base_url: str, model: str, temperature: float, enable_thinking: bool = False, 
+                     request_counter: Dict[str, int] = None) -> Tuple[Dict[int, str], bool]:
         """处理单个批次的翻译"""
         batch_texts = []
         batch_original_indices = []
@@ -181,7 +188,7 @@ class Translator:
         
         try:
             api_translations = self.translate_batch_of_texts(batch_texts, prompt_template, api_key, 
-                                                            base_url, model, temperature, enable_thinking)
+                                                            base_url, model, temperature, enable_thinking, request_counter)
             
             # 构建结果映射
             results = {}
@@ -327,15 +334,22 @@ class Translator:
         
         print(f"需要API翻译的批次数: {total_batches}")
         
+        # 初始化请求统计
+        request_counter = {"count": 0}
+        start_time = time.time()
+        last_update_time = start_time
+        
         # 进度显示辅助函数
-        def print_progress(batch_idx, total_batches, start_time, completed_batches, prefix="正在翻译"):
+        def print_progress(batch_idx, total_batches, completed_batches, prefix="正在翻译"):
+            nonlocal last_update_time
             progress = (batch_idx) / total_batches
             bar_length = 48
             filled_length = int(bar_length * progress)
             bar = '█' * filled_length + '░' * (bar_length - filled_length)
             
             # 计算剩余时间
-            elapsed_time = time.time() - start_time
+            current_time = time.time()
+            elapsed_time = current_time - start_time
             if completed_batches > 0:
                 avg_time_per_batch = elapsed_time / completed_batches
                 remaining_batches = total_batches - batch_idx
@@ -355,7 +369,15 @@ class Translator:
             else:
                 time_str = "计算中..."
             
-            print(f"{prefix}: [{bar}] {batch_idx}/{total_batches} ({progress*100:.1f}%) 剩余时间: {time_str}", end="\r", flush=True)
+            # 计算每秒请求量
+            time_since_last_update = current_time - last_update_time
+            if time_since_last_update > 0:
+                req_per_sec = request_counter["count"] / elapsed_time if elapsed_time > 0 else 0
+            else:
+                req_per_sec = 0
+            
+            print(f"{prefix}: [{bar}] {batch_idx}/{total_batches} ({progress*100:.1f}%) 剩余时间: {time_str} 请求/秒: {req_per_sec:.2f}", end="\r", flush=True)
+            last_update_time = current_time
         
         # 第四步：并行处理需要API翻译的文本
         print("开始API翻译...")
@@ -369,7 +391,8 @@ class Translator:
             # 提交所有批次任务
             future_to_batch = {
                 executor.submit(self.process_batch, batch_indices, pre_translated_texts, 
-                              need_api_translation_flags, prompt, api_key, base_url, model, temperature, enable_thinking): batch_idx
+                              need_api_translation_flags, prompt, api_key, base_url, model, temperature, enable_thinking, 
+                              request_counter): batch_idx
                 for batch_idx, batch_indices in enumerate(batches)
             }
             
@@ -386,7 +409,7 @@ class Translator:
                             success_count += 1
                     # 更新进度
                     completed_batches += 1
-                    print_progress(completed_batches, total_batches, start_time, completed_batches)
+                    print_progress(completed_batches, total_batches, completed_batches)
                 except Exception as e:
                     print(f"处理批次时出错: {e}")
         
@@ -398,7 +421,7 @@ class Translator:
                 results[i] = texts[i]  # 保留原文
         
         # 完成进度条
-        print_progress(total_batches, total_batches, start_time, completed_batches, prefix="翻译完成")
+        print_progress(total_batches, total_batches, completed_batches, prefix="翻译完成")
         print()  # 换行
         
         # 确保所有文本都有结果

@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import shutil
 from typing import List, Dict, Any
 from src.config.loader import config_loader
@@ -9,6 +10,15 @@ class FileWriter:
     
     def __init__(self):
         self.config = config_loader.get_config()
+    
+    def _get_base_path(self) -> str:
+        """获取基础路径，支持打包成exe的情况"""
+        if getattr(sys, 'frozen', False):
+            # 打包成exe的情况
+            return os.path.dirname(sys.executable)
+        else:
+            # 正常运行的情况
+            return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     
     def putback(self, translated_files: List[Dict[str, Any]], pos: str, lang: str) -> None:
         """
@@ -23,7 +33,8 @@ class FileWriter:
         target_dir = self.config["file_paths"][pos]
         
         # 检查目标文件夹根目录是否有 Font 文件夹，如果没有则复制项目的 Font 文件夹
-        source_font_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "Font")
+        base_path = self._get_base_path()
+        source_font_dir = os.path.join(base_path, "Font")
         target_direction = self.config["translation_settings"]["target_direction"]
         target_font_dir = os.path.join(target_dir, target_direction, "Font")
         

@@ -31,8 +31,10 @@ LCLT 是一个基于 LLM 的 Limbus Company 游戏翻译工具，使用官方的
   "translation_settings": {
     "origin_language": "jp",  //原始语言，推荐日语
     "target_direction": "LCLT_zh", //把翻译后的文本写到哪个文件夹中，会根据这个文件夹增量更新
-    "max_workers": 20,  //最大线程数 (如果服务商，网络可以，建议设置为 200~1000，否则10以下）
-    "max_chars_per_batch": 2000 //每次请求发送多少文字，建议根据模型输入上限折算，一般 2000 较好。  
+    "max_workers": 500,  //最大线程数 (如果服务商，网络可以，建议设置为 200~2000，否则10以下）
+    "max_chars_per_batch": 2000, //每次请求发送多少文字，建议根据模型输入上限折算，一般 2000 较好。  
+    "max_retries": 4, //API请求失败后的最大重试次数（如果仍然失败则复制原文）
+    "timeout": 120 //每个API请求的最大等待时间（秒）
   },
   "file_paths": {//两个位置配置
     "input_direction": "<路径>/Limbus Company/LimbusCompany_Data/Assets/Resources_moved/Localize",
@@ -43,7 +45,7 @@ LCLT 是一个基于 LLM 的 Limbus Company 游戏翻译工具，使用官方的
     "translation_configs": "translation_configs.json"
   },
   "options": {
-    "keep_backup_files": true, //开启备份，建议关闭
+    "keep_backup_files": false, //开启备份，建议关闭
     "confirm_before_translation": true //在翻译前确认，建议开启
   }
 }

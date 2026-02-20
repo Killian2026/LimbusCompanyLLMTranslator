@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from typing import Dict, Any, List
 import fnmatch
 
@@ -21,10 +22,26 @@ class ConfigLoader:
     def get_config(self) -> Dict[str, Any]:
         """获取配置（带缓存）"""
         if self._config_cache is None:
-            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.json")
+            # 获取正确的基础路径，支持打包成exe的情况
+            if getattr(sys, 'frozen', False):
+                # 打包成exe的情况
+                base_path = os.path.dirname(sys.executable)
+            else:
+                # 正常运行的情况
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            config_path = os.path.join(base_path, "config.json")
             with open(config_path, 'r', encoding='utf-8') as f:
                 self._config_cache = json.load(f)
         return self._config_cache
+    
+    def _get_base_path(self) -> str:
+        """获取基础路径，支持打包成exe的情况"""
+        if getattr(sys, 'frozen', False):
+            # 打包成exe的情况
+            return os.path.dirname(sys.executable)
+        else:
+            # 正常运行的情况
+            return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     
     def get_models(self) -> Dict[str, Any]:
         """获取模型配置（带缓存）"""
@@ -34,12 +51,14 @@ class ConfigLoader:
             config_files = config.get("config_files", {})
             models_file = config_files.get("models", "models.json")
             
-            models_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), models_file)
+            base_path = self._get_base_path()
+            models_path = os.path.join(base_path, models_file)
             try:
                 with open(models_path, 'r', encoding='utf-8') as f:
                     self._models_cache = json.load(f).get("models", {})
             except FileNotFoundError:
                 print(f"警告: 未找到{models_file}文件，将使用空模型配置")
+                print(f"尝试从路径: {models_path} 加载")
                 self._models_cache = {}
         return self._models_cache
     
@@ -51,25 +70,29 @@ class ConfigLoader:
             config_files = config.get("config_files", {})
             translation_configs_file = config_files.get("translation_configs", "translation_configs.json")
             
-            translation_configs_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), translation_configs_file)
+            base_path = self._get_base_path()
+            translation_configs_path = os.path.join(base_path, translation_configs_file)
             try:
                 with open(translation_configs_path, 'r', encoding='utf-8') as f:
                     self._translation_configs_cache = json.load(f)
             except FileNotFoundError:
                 print(f"警告: 未找到{translation_configs_file}文件，将使用空翻译配置")
+                print(f"尝试从路径: {translation_configs_path} 加载")
                 self._translation_configs_cache = {}
         return self._translation_configs_cache
     
     def get_terminology(self) -> Dict[str, str]:
         """获取术语库（带缓存）"""
         if self._terminology_cache is None:
-            terminology_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "terminology.json")
+            base_path = self._get_base_path()
+            terminology_path = os.path.join(base_path, "terminology.json")
             try:
                 with open(terminology_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     self._terminology_cache = data.get("terminology", {})
             except FileNotFoundError:
                 print("警告: 未找到terminology.json文件，将使用空术语表")
+                print(f"尝试从路径: {terminology_path} 加载")
                 self._terminology_cache = {}
         return self._terminology_cache
     
@@ -79,30 +102,33 @@ class ConfigLoader:
             self._prompt_cache = {}
         
         if prompt_file not in self._prompt_cache:
-            prompt_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), prompt_file)
+            base_path = self._get_base_path()
+            # 检查prompts目录
+            if not prompt_file.startswith("prompts/"):
+                prompt_path = os.path.join(base_path, "prompts", prompt_file)
+            else:
+                prompt_path = os.path.join(base_path, prompt_file)
+            
             try:
                 with open(prompt_path, 'r', encoding='utf-8') as f:
                     self._prompt_cache[prompt_file] = f.read().strip()
             except FileNotFoundError:
-                print(f"警告: 未找到{prompt_file}文件，将使用默认提示词")
-                # 使用默认提示词
-                default_prompt_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "prompt.txt")
-                try:
-                    with open(default_prompt_path, 'r', encoding='utf-8') as f:
-                        self._prompt_cache[prompt_file] = f.read().strip()
-                except FileNotFoundError:
-                    self._prompt_cache[prompt_file] = ""
+                print(f"警告: 未找到{prompt_file}文件，将使用空提示词")
+                print(f"尝试从路径: {prompt_path} 加载")
+                self._prompt_cache[prompt_file] = ""
         return self._prompt_cache[prompt_file]
     
     def get_blacklist(self) -> list:
         """获取黑名单（带缓存）"""
-        blacklist_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "BlackList.json")
+        base_path = self._get_base_path()
+        blacklist_path = os.path.join(base_path, "BlackList.json")
         try:
             with open(blacklist_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 return data.get("BlackList", [])
         except FileNotFoundError:
             print("警告: 未找到BlackList.json文件，将使用空黑名单")
+            print(f"尝试从路径: {blacklist_path} 加载")
             return []
     
     def get_translation_strategies(self) -> List[Dict[str, Any]]:
