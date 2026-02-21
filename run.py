@@ -6,4 +6,4 @@ from src.main import LCLT
 
 if __name__ == "__main__":
     lclt = LCLT()
-    lclt.update(log=True)
+    lclt.update()

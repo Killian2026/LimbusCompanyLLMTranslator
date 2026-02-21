@@ -159,12 +159,14 @@ class LCLT:
         返回:
         翻译后的文件列表
         """
-        # 按策略分组处理，使用不同的翻译策略
-        strategy_groups = {}
+        # 收集所有翻译任务
+        all_translation_tasks = []
         # 记录已处理的字段路径，确保每个字段只被一个策略处理
         processed_fields = set()
+        # 记录任务位置信息
+        task_positions = []
         
-        # 第一步：按文件和策略分组，并提取文本
+        # 第一步：收集所有翻译任务
         for i, file in enumerate(files):
             if "content" not in file or "dataList" not in file["content"]:
                 continue
@@ -183,14 +185,6 @@ class LCLT:
                     strategy_name = strategy.get("name", "default")
                     extract_fields = strategy.get("extract_fields", None)
                     
-                    # 如果该策略还没有对应的组，创建一个
-                    if strategy_name not in strategy_groups:
-                        strategy_groups[strategy_name] = {
-                            "strategy": strategy,
-                            "texts": [],
-                            "positions": []  # 存储 (文件索引, 路径) 元组
-                        }
-                    
                     # 从每个dataList项目开始递归提取文本
                     extracted = TextUtils.extract_text_recursive(item, self.blacklist, [j], extract_fields)
                     for path, text in extracted:
@@ -202,52 +196,47 @@ class LCLT:
                         # 标记该字段为已处理
                         processed_fields.add(field_path_tuple)
                         
-                        # 添加到策略组
-                        strategy_groups[strategy_name]["texts"].append(text)
-                        strategy_groups[strategy_name]["positions"].append((i, path))
+                        # 获取模型配置
+                        model_name = strategy.get("model", "deepseek")
+                        model_config = config_loader.get_model_config(model_name)
+                        
+                        # 获取API配置
+                        api_key = model_config.get("api_key", "")
+                        base_url = model_config.get("base_url", "")
+                        model = model_config.get("model", "deepseek-chat")
+                        temperature = model_config.get("temperature", 0.1)
+                        enable_thinking = model_config.get("enable_thinking", False)
+                        prompt_file = strategy.get("prompt_file", "prompt.txt")
+                        
+                        # 添加到翻译任务列表
+                        task = {
+                            "text": text,
+                            "api_key": api_key,
+                            "base_url": base_url,
+                            "model": model,
+                            "temperature": temperature,
+                            "enable_thinking": enable_thinking,
+                            "prompt_file": prompt_file,
+                            "index": len(all_translation_tasks)  # 任务索引
+                        }
+                        all_translation_tasks.append(task)
+                        task_positions.append((i, path))  # 记录任务对应的文件和路径
         
-        # 第二步：对每个组分别翻译
-        translations = {}
-        for strategy_name, group in strategy_groups.items():
-            if not group["texts"]:
-                continue
+        # 第二步：集中处理所有翻译任务
+        if all_translation_tasks:
+            print(f"\n共收集到 {len(all_translation_tasks)} 个翻译任务")
             
-            print(f"\n正在使用{strategy_name}策略翻译...")
+            # 使用新的批量翻译方法
+            translations_map = self.translator.batch_translate_with_multiple_strategies(all_translation_tasks)
             
-            # 获取策略配置
-            strategy = group["strategy"]
-            model_name = strategy.get("model", "deepseek")
-            prompt_file = strategy.get("prompt_file", "prompt.txt")
-            
-            # 获取模型配置
-            model_config = config_loader.get_model_config(model_name)
-            
-            # 获取API配置
-            api_key = model_config.get("api_key", "")
-            base_url = model_config.get("base_url", "")
-            model = model_config.get("model", "deepseek-chat")
-            temperature = model_config.get("temperature", 0.1)
-            enable_thinking = model_config.get("enable_thinking", False)
-            
-            # 翻译文本
-            _, _, translated_texts = self.translator.optimized_translate(
-                group["texts"],
-                api_key=api_key,
-                base_url=base_url,
-                model=model,
-                temperature=temperature,
-                enable_thinking=enable_thinking,
-                prompt_file=prompt_file
-            )
-            
-            # 存储翻译结果
-            translations[strategy_name] = translated_texts
-        
-        # 第三步：将翻译结果写回到原始数据结构中
-        for strategy_name, group in strategy_groups.items():
-            translated_texts = translations.get(strategy_name, [])
-            for (i, path), translated_text in zip(group["positions"], translated_texts):
-                TextUtils.set_text_recursive(files[i]["content"]["dataList"], path, translated_text)
+            # 第三步：将翻译结果写回到原始数据结构中
+            print("\n正在将翻译结果写回文件...")
+            for task_idx, (i, path) in enumerate(task_positions):
+                if task_idx in translations_map:
+                    translated_text = translations_map[task_idx]
+                    TextUtils.set_text_recursive(files[i]["content"]["dataList"], path, translated_text)
+        else:
+            print("\n没有需要翻译的文本")
         
         return files
 
