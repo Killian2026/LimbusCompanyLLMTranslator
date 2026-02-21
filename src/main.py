@@ -207,6 +207,7 @@ class LCLT:
                         temperature = model_config.get("temperature", 0.1)
                         enable_thinking = model_config.get("enable_thinking", False)
                         prompt_file = strategy.get("prompt_file", "prompt.txt")
+                        terminology_file = strategy.get("terminology_file", "terminology.json")
                         
                         # 添加到翻译任务列表
                         task = {
@@ -217,6 +218,7 @@ class LCLT:
                             "temperature": temperature,
                             "enable_thinking": enable_thinking,
                             "prompt_file": prompt_file,
+                            "terminology_file": terminology_file,
                             "index": len(all_translation_tasks)  # 任务索引
                         }
                         all_translation_tasks.append(task)

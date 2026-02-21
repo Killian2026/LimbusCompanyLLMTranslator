@@ -59,3 +59,5 @@ Output: <style="djp_CP6_2">我是多么殷切地盼望过啊
 
 # Task Start
 Translate the following BGM lyrics into Simplified Chinese:
+NEVER translate content inside `[...]`.
+Keep `---SPLITTER---` untouched.

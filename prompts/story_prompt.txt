@@ -45,3 +45,5 @@ Output: 良秀紧握着那把刺向小指父辈的刀。
 
 # Task Start
 Translate the following narrative text into Simplified Chinese:
+NEVER translate content inside `[...]`.
+Keep `---SPLITTER---` untouched.

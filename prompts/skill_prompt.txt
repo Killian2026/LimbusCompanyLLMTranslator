@@ -65,3 +65,5 @@ Output: 若目标持有10层以上[Sinking]，造成的伤害+20%。
 
 # Task Start
 Translate the following technical content into Simplified Chinese:
+NEVER translate content inside `[...]`.
+Keep `---SPLITTER---` untouched.

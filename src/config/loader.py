@@ -81,20 +81,26 @@ class ConfigLoader:
                 self._translation_configs_cache = {}
         return self._translation_configs_cache
     
-    def get_terminology(self) -> Dict[str, str]:
+    def get_terminology(self, terminology_file: str = "terminology.json") -> Dict[str, str]:
         """获取术语库（带缓存）"""
-        if self._terminology_cache is None:
+        # 确保_terminology_cache是一个字典
+        if not hasattr(self, "_terminology_cache") or self._terminology_cache is None:
+            self._terminology_cache = {}
+        
+        if terminology_file not in self._terminology_cache:
             base_path = self._get_base_path()
-            terminology_path = os.path.join(base_path, "terminology.json")
+            # 确保术语库路径正确连接，即使以斜杠开头
+            terminology_file = terminology_file.lstrip('/')
+            terminology_path = os.path.join(base_path, terminology_file)
             try:
                 with open(terminology_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    self._terminology_cache = data.get("terminology", {})
+                    self._terminology_cache[terminology_file] = data.get("terminology", {})
             except FileNotFoundError:
-                print("警告: 未找到terminology.json文件，将使用空术语表")
+                print(f"警告: 未找到{terminology_file}文件，将使用空术语表")
                 print(f"尝试从路径: {terminology_path} 加载")
-                self._terminology_cache = {}
-        return self._terminology_cache
+                self._terminology_cache[terminology_file] = {}
+        return self._terminology_cache.get(terminology_file, {})
     
     def get_prompt(self, prompt_file: str = "prompt.txt") -> str:
         """获取提示词（带缓存）"""

@@ -7,8 +7,7 @@
         {"pattern": "BgmLyrics/*"}
       ],
       "model": "story",
-      "prompt_file": "prompts/bgm_lyrics_prompt.txt",
-      "memory_file": "memories/bgm_lyrics_memory.json"
+      "prompt_file": "prompts/bgm_lyrics_prompt.txt"
     },
     {
       "name": "story",
@@ -24,7 +23,7 @@
       ],
       "model": "story",
       "prompt_file": "prompts/story_prompt.txt",
-      "memory_file": "memories/story_memory.json"
+      "terminology_file": "terminology/story.json"
     },
     {
       "name": "skill",
@@ -38,7 +37,7 @@
       ],
       "model": "skill",
       "prompt_file": "prompts/skill_prompt.txt",
-      "memory_file": "memories/skill_memory.json"
+      "terminology_file": "terminology/skill.json"
     },
     {
       "name": "default",
@@ -48,7 +47,7 @@
       ],
       "model": "origin",
       "prompt_file": "prompts/default_prompt.txt",
-      "memory_file": "memories/default_memory.json"
+      "terminology_file": "terminology/default.json"
     }
   ]
 }

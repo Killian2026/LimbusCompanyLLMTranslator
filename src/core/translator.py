@@ -13,7 +13,6 @@ class Translator:
     
     def __init__(self):
         self.config = config_loader.get_config()
-        self.terminology = config_loader.get_terminology()
         self._session = None
         self._regex_cache = {}
         self._translation_cache = {}
@@ -24,27 +23,29 @@ class Translator:
             self._session = requests.Session()
         return self._session
     
-    def apply_terminology(self, text: str) -> Tuple[str, bool]:
+    def apply_terminology(self, text: str, terminology: Dict[str, str] = None) -> Tuple[str, bool]:
         """应用语料库翻译，返回翻译后的文本和是否进行了术语替换的标志"""
         if not text or not isinstance(text, str):
             return text, False
         
-        if not self.terminology:
+        if not terminology:
             return text, False
         
         # 按长度排序，优先替换较长的术语
-        sorted_terms = sorted(self.terminology.items(), key=lambda x: len(x[0]), reverse=True)
+        sorted_terms = sorted(terminology.items(), key=lambda x: len(x[0]), reverse=True)
         
         # 构建一个大的正则表达式
         patterns = []
         term_map = {}
         for source, target in sorted_terms:
-            pattern = r'(?<!\w)' + re.escape(source) + r'(?!\w)'
+            # 对于日文字符，不使用单词边界，因为\w不匹配日文字符
+            # 直接匹配整个术语，避免单词边界问题
+            pattern = re.escape(source)
             patterns.append(pattern)
-            term_map[source.lower()] = target
+            term_map[source] = target
         
         # 编译组合正则表达式
-        cache_key = tuple(sorted(self.terminology.items()))
+        cache_key = tuple(sorted(terminology.items()))
         if cache_key not in self._regex_cache:
             combined_pattern = re.compile('|'.join(patterns), re.IGNORECASE)
             self._regex_cache[cache_key] = combined_pattern
@@ -54,7 +55,7 @@ class Translator:
         # 替换函数
         def replace_term(match):
             matched_term = match.group(0)
-            return term_map.get(matched_term.lower(), matched_term)
+            return term_map.get(matched_term, matched_term)
         
         # 一次性替换所有匹配项
         new_result = combined_pattern.sub(replace_term, text)
@@ -235,6 +236,7 @@ class Translator:
                 "temperature": temperature,
                 "enable_thinking": enable_thinking,
                 "prompt_file": prompt_file,
+                "terminology_file": "terminology.json",  # 默认使用全局术语库
                 "index": i
             })
         
@@ -276,6 +278,8 @@ class Translator:
         global_request_counter = {"count": 0}
         # 记录开始时间
         start_time = time.time()
+        # 记录上次进度更新时间
+        last_update_time = start_time
         
         # 按策略分组任务
         strategy_groups = {}
@@ -287,7 +291,8 @@ class Translator:
                 task["model"],
                 task["temperature"],
                 task["enable_thinking"],
-                task["prompt_file"]
+                task["prompt_file"],
+                task.get("terminology_file", "terminology.json")
             )
             
             if strategy_key not in strategy_groups:
@@ -298,6 +303,7 @@ class Translator:
                     "temperature": task["temperature"],
                     "enable_thinking": task["enable_thinking"],
                     "prompt_file": task["prompt_file"],
+                    "terminology_file": task.get("terminology_file", "terminology.json"),
                     "tasks": []
                 }
             
@@ -335,6 +341,10 @@ class Translator:
                 texts = [task["text"] for task in group_tasks]
                 indices = [task["index"] for task in group_tasks]
                 
+                # 加载策略指定的术语库
+                terminology_file = group.get("terminology_file", "terminology.json")
+                terminology = config_loader.get_terminology(terminology_file)
+                
                 # 对每个策略组的文本进行预翻译
                 pre_translated_texts = []
                 need_api_translation_flags = []
@@ -345,8 +355,8 @@ class Translator:
                         pre_translated_texts.append(text)
                         need_api_translation_flags.append(False)
                     else:
-                        # 尝试使用术语库翻译
-                        pre_translated, was_replaced = self.apply_terminology(text)
+                        # 尝试使用策略指定的术语库翻译
+                        pre_translated, was_replaced = self.apply_terminology(text, terminology)
                         pre_translated_texts.append(pre_translated)
                         need_api_translation_flags.append(True)
                 
@@ -424,19 +434,20 @@ class Translator:
                         results_map[task_index] = translated_text
                     completed_tasks += len(batch_indices)
                     
-                    # 显示整体进度
-                    if total_tasks > 0:
+                    # 显示整体进度，限制更新频率
+                    current_time = time.time()
+                    if total_tasks > 0 and (current_time - last_update_time) > 0.1:  # 每0.1秒更新一次
                         progress = completed_tasks / total_tasks
                         bar_length = 48
                         filled_length = int(bar_length * progress)
                         bar = '█' * filled_length + '░' * (bar_length - filled_length)
                         
                         # 计算每秒请求量
-                        current_time = time.time()
                         elapsed_time = current_time - start_time
                         req_per_sec = global_request_counter["count"] / elapsed_time if elapsed_time > 0 else 0
                         
                         print(f"\r整体翻译进度: [{bar}] {completed_tasks}/{total_tasks} ({progress*100:.1f}%) 请求/秒: {req_per_sec:.2f}               ", end="", flush=True)
+                        last_update_time = current_time
                 except Exception as e:
                     print(f"处理批次时出错: {e}")
         

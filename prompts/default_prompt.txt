@@ -72,3 +72,5 @@ Explanation: Narrative captures the violent tone ("撕成碎片"). Mechanic is p
 
 # Task Start
 Translate the following content into Simplified Chinese:
+NEVER translate content inside `[...]`.
+Keep `---SPLITTER---` untouched.

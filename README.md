@@ -1,11 +1,10 @@
 # LCLT (Limbus Company LLM Translator)
-
 LCLT 是一个基于 LLM 的 Limbus Company 游戏翻译工具，使用官方的翻译接口。  
 解决游戏没有中文翻译的问题。  
 
 暂不成熟，代码由AI重写过，欢迎反馈。  
 # 亮点
-1. 翻译速度极快，保守测试一秒可以翻译10000+字符（deepseek-chat）
+1. 翻译速度极快，保守测试一秒可以翻译几万字符（deepseek-chat）  
 2. 基本可读，虽然并不是完全准确，但是已经能理解剧情/技能的意思。  
 3. 增量翻译，每次只翻一点点，花费低。  
 # 快速开始
@@ -73,15 +72,46 @@ LCLT 是一个基于 LLM 的 Limbus Company 游戏翻译工具，使用官方的
     ...
   ],
   "model": "story", //使用模型story
-  "prompt_file": "prompts/story_prompt.txt", //使用提示词
-  "memory_file": "memories/story_memory.json" //使用的记忆库（暂未实现）
+  "prompt_file": "prompts/story_prompt.txt", //使用的提示词
+  "terminology_file": "terminology/story.json" //使用的术语库（可选）
 },
 ```
 ## 提示词
 可以在 `prompts/` 中填写提示词。  
 ## 术语库
-**即将弃用 不推荐**    
-`terminology.json` 中填写术语库，在翻译前将会尝试把可用的术语先替换。  
+`terminology/` 中填写术语库，在翻译前将会尝试把可用的术语先替换。
+
+### 术语库配置
+每个翻译策略可以指定自己的术语库文件，通过在 `translation_configs.json` 中添加 `terminology_file` 字段：
+
+```json
+{
+  "name": "story",
+  "priority": 2,
+  "file_patterns": [
+    {"pattern": "*BattleKeywords*", "extract_fields": ["flavor", "name"]},
+    {"pattern": "*Enemies*"}
+  ],
+  "model": "story",
+  "prompt_file": "prompts/story_prompt.txt",
+  "terminology_file": "terminology/story.json" // 每个策略可以指定不同的术语库
+}
+```
+
+### 术语库格式
+术语库文件的格式为：
+
+```json
+{
+  "terminology": {
+    "ドンキホーテ": "堂吉诃德",
+    "ファウスト": "浮士德",
+    "グレゴール": "格里高尔"
+  }
+}
+```
+
+如果翻译策略没有指定术语库文件，系统会默认使用 `terminology.json` 文件。  
 
 # 计划
 - [x] 基础术语表功能
@@ -104,11 +134,17 @@ LCLT 是一个基于 LLM 的 Limbus Company 游戏翻译工具，使用官方的
 ```plain
 LCLT/
 ├── Font/                    
-│   └── Context/             
+│   └── Context/              
 │       ...                  # 此处存放字体 (.ttf文件)
 |
 ├── prompts/                 
 │   ...                      # 此处存放翻译提示词 (.txt文件)
+|
+├── terminology/             
+│   ...                      # 此处存放术语库 (.json文件)
+│   ├── default.json         # 默认术语库
+│   ├── story.json           # 故事文本术语库
+│   └── skill.json           # 技能文本术语库
 │   
 ├── src/                     # 源代码目录
 │   ├── config/              
