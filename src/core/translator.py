@@ -6,6 +6,7 @@ import math
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
+from tqdm import tqdm
 from src.config.loader import config_loader
 
 class Translator:
@@ -77,8 +78,8 @@ class Translator:
         # 构建API请求
         formatted_texts = ""
         for idx, text in enumerate(batch_texts, 1):
-            # 使用更独特的分隔符，防止与文本内部的换行符混淆
-            formatted_texts += f"{idx}. {text}\n---SPLITTER---\n"
+            # 使用更简洁的分隔符，减少token占用
+            formatted_texts += f"{idx}. {text}\n---\n"
 
         headers = {
             "Content-Type": "application/json",
@@ -132,7 +133,7 @@ class Translator:
                         continue
 
                         # 检查是否是分隔符
-                    if line == "---SPLITTER---":
+                    if line == "---":  # 简洁的分隔符，减少token占用
                         if current_num is not None and current_translation:
                             # 保存当前翻译
                             translation = "\n".join(current_translation).strip()
@@ -278,8 +279,6 @@ class Translator:
         global_request_counter = {"count": 0}
         # 记录开始时间
         start_time = time.time()
-        # 记录上次进度更新时间
-        last_update_time = start_time
         
         # 按策略分组任务
         strategy_groups = {}
@@ -320,136 +319,145 @@ class Translator:
         
         print(f"开始集中处理 {total_tasks} 个翻译任务，使用 {total_workers} 个线程")
         
-        with ThreadPoolExecutor(max_workers=total_workers) as executor:
-            # 为每个策略组提交任务
-            for strategy_key, group in strategy_groups.items():
-                # 提取策略信息
-                api_key = group["api_key"]
-                base_url = group["base_url"]
-                model = group["model"]
-                temperature = group["temperature"]
-                enable_thinking = group["enable_thinking"]
-                prompt_file = group["prompt_file"]
-                group_tasks = group["tasks"]
-                
-                print(f"  策略组: {model} 使用 {prompt_file}，处理 {len(group_tasks)} 个任务")
-                
-                # 加载提示词
-                prompt = config_loader.get_prompt(prompt_file)
-                
-                # 提取文本和索引
-                texts = [task["text"] for task in group_tasks]
-                indices = [task["index"] for task in group_tasks]
-                
-                # 加载策略指定的术语库
-                terminology_file = group.get("terminology_file", "terminology.json")
-                terminology = config_loader.get_terminology(terminology_file)
-                
-                # 对每个策略组的文本进行预翻译
-                pre_translated_texts = []
-                need_api_translation_flags = []
-                
-                for text in texts:
-                    if not text or not isinstance(text, str):
-                        # 非字符串或空值直接保留
-                        pre_translated_texts.append(text)
-                        need_api_translation_flags.append(False)
-                    else:
-                        # 尝试使用策略指定的术语库翻译
-                        pre_translated, was_replaced = self.apply_terminology(text, terminology)
-                        pre_translated_texts.append(pre_translated)
-                        need_api_translation_flags.append(True)
-                
-                # 只为需要API翻译的文本创建批次
-                need_api_indices = [i for i in range(len(texts)) if need_api_translation_flags[i]]
-                
-                if not need_api_indices:
-                    # 所有文本都不需要API翻译
-                    for i, task in enumerate(group_tasks):
-                        results_map[task["index"]] = texts[i]
-                    continue
-                
-                # 重新组织批次：只为需要API翻译的文本按字符数阈值分组
-                def create_batches_for_api_texts():
-                    """为需要API翻译的文本创建批次"""
-                    batches = []  # 每个批次包含索引列表
-                    current_batch = []
-                    current_chars = 0
+        # 先打印所有策略组信息
+        for strategy_key, group in strategy_groups.items():
+            # 提取策略信息
+            api_key = group["api_key"]
+            base_url = group["base_url"]
+            model = group["model"]
+            temperature = group["temperature"]
+            enable_thinking = group["enable_thinking"]
+            prompt_file = group["prompt_file"]
+            group_tasks = group["tasks"]
+            
+            print(f"  策略组: {model} 使用 {prompt_file}，处理 {len(group_tasks)} 个任务")
+        
+        # 创建 tqdm 进度条
+        with tqdm(total=total_tasks, desc="整体翻译进度", unit="task") as pbar:
+            with ThreadPoolExecutor(max_workers=total_workers) as executor:
+                # 为每个策略组提交任务
+                for strategy_key, group in strategy_groups.items():
+                    # 提取策略信息
+                    api_key = group["api_key"]
+                    base_url = group["base_url"]
+                    model = group["model"]
+                    temperature = group["temperature"]
+                    enable_thinking = group["enable_thinking"]
+                    prompt_file = group["prompt_file"]
+                    group_tasks = group["tasks"]
                     
-                    for idx in need_api_indices:
-                        text = pre_translated_texts[idx]
-                        if not isinstance(text, str):
-                            continue
-                            
-                        text_chars = len(text.encode('utf-8'))
-                        
-                        if current_batch and current_chars + text_chars > max_chars_per_batch:
-                            # 当前批次已满，保存并开始新批次
-                            batches.append(current_batch)
-                            current_batch = [idx]
-                            current_chars = text_chars
+                    # 加载提示词
+                    prompt = config_loader.get_prompt(prompt_file)
+                    
+                    # 提取文本和索引
+                    texts = [task["text"] for task in group_tasks]
+                    indices = [task["index"] for task in group_tasks]
+                    
+                    # 加载策略指定的术语库
+                    terminology_file = group.get("terminology_file", "terminology.json")
+                    terminology = config_loader.get_terminology(terminology_file)
+                    
+                    # 对每个策略组的文本进行预翻译
+                    pre_translated_texts = []
+                    need_api_translation_flags = []
+                    
+                    for text in texts:
+                        if not text or not isinstance(text, str):
+                            # 非字符串或空值直接保留
+                            pre_translated_texts.append(text)
+                            need_api_translation_flags.append(False)
                         else:
-                            # 可以添加到当前批次
-                            current_batch.append(idx)
-                            current_chars += text_chars
+                            # 尝试使用策略指定的术语库翻译
+                            pre_translated, was_replaced = self.apply_terminology(text, terminology)
+                            pre_translated_texts.append(pre_translated)
+                            need_api_translation_flags.append(True)
                     
-                    # 添加最后一个批次
-                    if current_batch:
-                        batches.append(current_batch)
+                    # 只为需要API翻译的文本创建批次
+                    need_api_indices = [i for i in range(len(texts)) if need_api_translation_flags[i]]
                     
-                    return batches
-                
-                # 创建批次
-                batches = create_batches_for_api_texts()
-                
-                # 提交批次任务
-                for batch_indices in batches:
-                    future = executor.submit(
-                        self.process_batch,
-                        batch_indices,
-                        pre_translated_texts,
-                        need_api_translation_flags,
-                        prompt,
-                        api_key,
-                        base_url,
-                        model,
-                        temperature,
-                        enable_thinking,
-                        global_request_counter
-                    )
-                    # 保存批次信息
-                    all_futures.append((future, indices, batch_indices, pre_translated_texts, need_api_translation_flags))
-            
-            # 收集所有结果
-            completed_tasks = 0
-            total_batches = len(all_futures)
-            
-            for future, group_indices, batch_indices, pre_translated_texts, need_api_translation_flags in all_futures:
-                try:
-                    batch_results, batch_success = future.result()
-                    # 更新结果
-                    for orig_idx, translated_text in batch_results.items():
-                        # 获取原始任务索引
-                        task_index = group_indices[orig_idx]
-                        results_map[task_index] = translated_text
-                    completed_tasks += len(batch_indices)
+                    if not need_api_indices:
+                        # 所有文本都不需要API翻译
+                        for i, task in enumerate(group_tasks):
+                            results_map[task["index"]] = texts[i]
+                        # 更新进度条
+                        pbar.update(len(group_tasks))
+                        continue
                     
-                    # 显示整体进度，限制更新频率
-                    current_time = time.time()
-                    if total_tasks > 0 and (current_time - last_update_time) > 0.1:  # 每0.1秒更新一次
-                        progress = completed_tasks / total_tasks
-                        bar_length = 48
-                        filled_length = int(bar_length * progress)
-                        bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                    # 重新组织批次：只为需要API翻译的文本按字符数阈值分组
+                    def create_batches_for_api_texts():
+                        """为需要API翻译的文本创建批次"""
+                        batches = []  # 每个批次包含索引列表
+                        current_batch = []
+                        current_chars = 0
                         
-                        # 计算每秒请求量
+                        for idx in need_api_indices:
+                            text = pre_translated_texts[idx]
+                            if not isinstance(text, str):
+                                continue
+                                
+                            text_chars = len(text.encode('utf-8'))
+                            
+                            if current_batch and current_chars + text_chars > max_chars_per_batch:
+                                # 当前批次已满，保存并开始新批次
+                                batches.append(current_batch)
+                                current_batch = [idx]
+                                current_chars = text_chars
+                            else:
+                                # 可以添加到当前批次
+                                current_batch.append(idx)
+                                current_chars += text_chars
+                        
+                        # 添加最后一个批次
+                        if current_batch:
+                            batches.append(current_batch)
+                        
+                        return batches
+                    
+                    # 创建批次
+                    batches = create_batches_for_api_texts()
+                    
+                    # 提交批次任务
+                    for batch_indices in batches:
+                        future = executor.submit(
+                            self.process_batch,
+                            batch_indices,
+                            pre_translated_texts,
+                            need_api_translation_flags,
+                            prompt,
+                            api_key,
+                            base_url,
+                            model,
+                            temperature,
+                            enable_thinking,
+                            global_request_counter
+                        )
+                        # 保存批次信息
+                        all_futures.append((future, indices, batch_indices, pre_translated_texts, need_api_translation_flags))
+                
+                # 收集所有结果
+                completed_tasks = 0
+                
+                for future, group_indices, batch_indices, pre_translated_texts, need_api_translation_flags in all_futures:
+                    try:
+                        batch_results, batch_success = future.result()
+                        # 更新结果
+                        for orig_idx, translated_text in batch_results.items():
+                            # 获取原始任务索引
+                            task_index = group_indices[orig_idx]
+                            results_map[task_index] = translated_text
+                        completed_tasks += len(batch_indices)
+                        
+                        # 更新进度条
+                        pbar.update(len(batch_indices))
+                        
+                        # 计算每秒请求量并显示
+                        current_time = time.time()
                         elapsed_time = current_time - start_time
-                        req_per_sec = global_request_counter["count"] / elapsed_time if elapsed_time > 0 else 0
-                        
-                        print(f"\r整体翻译进度: [{bar}] {completed_tasks}/{total_tasks} ({progress*100:.1f}%) 请求/秒: {req_per_sec:.2f}               ", end="", flush=True)
-                        last_update_time = current_time
-                except Exception as e:
-                    print(f"处理批次时出错: {e}")
+                        if elapsed_time > 0:
+                            req_per_sec = global_request_counter["count"] / elapsed_time
+                            pbar.set_postfix({"请求/秒": f"{req_per_sec:.2f}"})
+                    except Exception as e:
+                        print(f"处理批次时出错: {e}")
         
         print()  # 换行
         return results_map
