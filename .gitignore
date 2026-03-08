@@ -10,4 +10,5 @@ config.json
 build_release.bat
 build_release.py
 /Font/Context/
+/Font/Title/
 run.bat
