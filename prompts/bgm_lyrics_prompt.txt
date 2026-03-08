@@ -43,7 +43,7 @@ Output: 因为“再”并不是“再见”的“再”
 
 <Example_Don_Quixote_Style>
 Input: そなたが見せてくれた世界は 私の視野を広げてくれる
-Output: 你让我看到的世界 开阔了我的视野
+Output: 你让我看到了世界 开阔了我的视野
 </Example_Don_Quixote_Style>
 
 <Example_Style_Tags>
