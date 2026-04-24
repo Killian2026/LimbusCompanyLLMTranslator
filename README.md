@@ -1,11 +1,11 @@
 # LCLT (Limbus Company LLM Translator)
 LCLT 是一个基于 LLM 的 Limbus Company 游戏翻译工具，使用官方的翻译接口。  
-解决游戏没有中文翻译的问题。  
+专为高速翻译而生，超多线程翻译。  
 
 暂不成熟，代码由AI重写过，欢迎反馈。  
 # 亮点
-1. 翻译速度极快，保守测试一秒可以翻译几万字符（deepseek-chat）  
-2. 基本可读，虽然并不是完全准确，但是已经能理解剧情/技能的意思。  
+1. 翻译速度极快，保守测试一秒可以翻译几万字符，四分钟内翻译开服至第八章全部文本（deepseek-chat）。   
+2. 保留专有名词，防止歧义。    
 3. 增量翻译，每次只翻一点点，花费低。  
 # 快速开始
 从 Release 下载最新版本的 ZIP 文件，解压。  
@@ -167,4 +167,4 @@ LCLT/
 ```
 
 # 致谢
-- 部分翻译提示词参考了 [零协会](https://github.com/LocalizeLimbusCompany/LocalizeLimbusCompany) 的翻译成果，特别感谢。
+- 部分翻译提示词参考了 [零协会](https://github.com/LocalizeLimbusCompany/LocalizeLimbusCompany) 的翻译成果，特别感谢。  

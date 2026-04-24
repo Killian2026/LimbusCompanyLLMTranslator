@@ -147,41 +147,6 @@ class ConfigLoader:
         models = self.get_models()
         return models.get(model_name, {})
     
-    def get_strategy_for_file(self, file_path: str) -> Dict[str, Any]:
-        """根据文件路径获取对应的翻译策略"""
-        strategies = self.get_translation_strategies()
-        
-        # 按优先级排序策略
-        sorted_strategies = sorted(strategies, key=lambda x: x.get("priority", 999))
-        
-        # 获取文件名（不包括路径）
-        file_name = os.path.basename(file_path)
-        
-        # 遍历策略，找到第一个匹配的
-        for strategy in sorted_strategies:
-            file_patterns = strategy.get("file_patterns", [])
-            for pattern_config in file_patterns:
-
-                pattern = pattern_config.get("pattern", "")
-                extract_fields = pattern_config.get("extract_fields", strategy.get("extract_fields", None))
-                
-                # 检查路径匹配
-                if fnmatch.fnmatch(file_path, pattern):
-                    # 返回带有extract_fields的策略副本
-                    strategy_copy = strategy.copy()
-                    strategy_copy["extract_fields"] = extract_fields
-                    return strategy_copy
-                # 检查文件名匹配（不包括路径）
-                if fnmatch.fnmatch(file_name, pattern):
-                    # 返回带有extract_fields的策略副本
-                    strategy_copy = strategy.copy()
-                    strategy_copy["extract_fields"] = extract_fields
-                    return strategy_copy
-        
-        # 如果没有匹配的策略，返回默认策略
-        default_strategy = next((s for s in sorted_strategies if s.get("name") == "default"), None)
-        return default_strategy
-    
     def get_strategies_for_file(self, file_path: str) -> List[Dict[str, Any]]:
         """根据文件路径获取所有匹配的翻译策略"""
         strategies = self.get_translation_strategies()

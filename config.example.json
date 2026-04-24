@@ -2,8 +2,8 @@
   "translation_settings": {
     "origin_language": "jp",
     "target_direction": "LCLT_zh",
-    "max_workers": 1000,
-    "max_chars_per_batch": 2000,
+    "max_workers": 50,
+    "max_chars_per_batch": 8000,
     "max_retries": 4,
     "timeout": 90
   },

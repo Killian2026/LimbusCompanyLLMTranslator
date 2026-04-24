@@ -2,22 +2,22 @@
   "models": {
     "origin": {
       "api_key": "Your API key (OpenAI兼容)",
-      "base_url": "Your Base URL",
-      "model": "Model Name",
-      "temperature": 0.3,
+      "base_url": "https://api.deepseek.com/chat/completions",
+      "model": "deepseek-v4-flash",
+      "temperature": 0.1,
       "enable_thinking": false
     },
     "story": {
       "api_key": "Your API key (OpenAI兼容)",
-      "base_url": "Your Base URL",
-      "model": "Model Name",
-      "temperature": 0.7,
+      "base_url": "https://api.deepseek.com/chat/completions",
+      "model": "deepseek-v4-flash",
+      "temperature": 0.1,
       "enable_thinking": false
     },
     "skill": {
       "api_key": "Your API key (OpenAI兼容)",
-      "base_url": "Your Base URL",
-      "model": "Model Name",
+      "base_url": "https://api.deepseek.com/chat/completions",
+      "model": "deepseek-v4-flash",
       "temperature": 0.1,
       "enable_thinking": false
     }

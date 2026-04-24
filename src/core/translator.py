@@ -92,12 +92,11 @@ class Translator:
                 {"role": "system","content": prompt_template},
                 {"role": "user","content": formatted_texts}],
             "temperature": temperature,
-            "max_tokens": 8192,
+            "max_tokens": 16384,
         }
 
-        # 如果启用了思考模式，添加相应参数
         if enable_thinking:
-            payload["thinking"] = True
+            payload["reasoning_effort"] = "medium"
 
         # 增加请求计数
         if request_counter is not None:
@@ -181,12 +180,7 @@ class Translator:
                      api_key: str, base_url: str, model: str, temperature: float, enable_thinking: bool = False, 
                      request_counter: Dict[str, int] = None) -> Tuple[Dict[int, str], bool]:
         """处理单个批次的翻译"""
-        batch_texts = []
-        batch_original_indices = []
-        
-        for idx in batch_indices:
-            batch_texts.append(pre_translated_texts[idx])
-            batch_original_indices.append(idx)
+        batch_texts = [pre_translated_texts[idx] for idx in batch_indices]
         
         try:
             api_translations = self.translate_batch_of_texts(batch_texts, prompt_template, api_key, 
