@@ -7,7 +7,10 @@ import time
 
 
 def main():
-    app_dir = os.path.dirname(os.path.abspath(__file__))
+    if getattr(sys, 'frozen', False):
+        app_dir = sys._MEIPASS
+    else:
+        app_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(app_dir)
 
     port = 8501
@@ -20,25 +23,22 @@ def main():
 
     threading.Thread(target=open_browser, daemon=True).start()
 
+    app_path = os.path.join(app_dir, "app.py")
+
     print(f"LCLT 翻译工具已启动")
     print(f"请在浏览器中访问: {url}")
 
-    # 必须在主线程运行 Streamlit（signal 模块要求）
-    import streamlit.web.bootstrap
-    from streamlit import config as _config
-
-    _config.set_option("server.port", port)
-    _config.set_option("server.headless", True)
-    _config.set_option("browser.serverAddress", "localhost")
-    _config.set_option("browser.gatherUsageStats", False)
-    _config.set_option("server.enableXsrfProtection", False)
-
-    streamlit.web.bootstrap.run(
-        os.path.join(app_dir, "app.py"),
-        is_hello=False,
-        args=[],
-        flag_options={},
-    )
+    sys.argv = [
+        "streamlit", "run", app_path,
+        "--server.port", str(port),
+        "--server.headless", "true",
+        "--server.enableXsrfProtection", "false",
+        "--browser.gatherUsageStats", "false",
+        "--browser.serverAddress", "localhost",
+        "--global.developmentMode", "false",
+    ]
+    import streamlit.web.cli
+    streamlit.web.cli.main()
 
 
 if __name__ == "__main__":
