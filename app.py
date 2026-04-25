@@ -152,16 +152,16 @@ if not st.session_state.setup_done:
     st.title("👋 欢迎使用 LCLT")
 
     # ---- 步骤指示器 ----
-    step_labels = {1: "📂 游戏目录", 2: "🔑 API 配置"}
+    step_labels = {1: "📂 游戏目录", 2: "🔑 API 配置", 3: "🔤 字体配置"}
     steps_html = ""
-    for s in (1, 2):
+    for s in (1, 2, 3):
         if s == st.session_state.setup_step:
             steps_html += f"<span style='background:#ff4b4b;color:#fff;padding:6px 16px;border-radius:6px;margin:4px;font-weight:bold'>{step_labels[s]}</span>"
         elif s < st.session_state.setup_step:
             steps_html += f"<span style='background:#4caf50;color:#fff;padding:6px 16px;border-radius:6px;margin:4px'>✅ {step_labels[s]}</span>"
         else:
             steps_html += f"<span style='background:#444;color:#aaa;padding:6px 16px;border-radius:6px;margin:4px'>{step_labels[s]}</span>"
-        if s == 1:
+        if s < 3:
             steps_html += " → "
     st.markdown(steps_html, unsafe_allow_html=True)
     st.divider()
@@ -254,19 +254,100 @@ if not st.session_state.setup_done:
 
         # 底部按钮
         st.divider()
-        col_back, col_skip, col_done = st.columns([1, 1, 1])
+        col_back, col_skip, col_next = st.columns([1, 1, 1])
         with col_back:
             if st.button("⬅️ 上一步", use_container_width=True):
                 st.session_state.setup_step = 1
                 st.rerun()
         with col_skip:
             if st.button("⏭️ 稍后再说", use_container_width=True):
-                # 保存已填的 API（如果有的话）
                 if api_key.strip() or api_url.strip():
                     main_model["base_url"] = api_url.strip()
                     if api_key.strip():
                         main_model["api_key"] = api_key.strip()
                     save_models(models)
+                st.session_state.setup_done = True
+                st.rerun()
+        with col_next:
+            if st.button("下一步 ➡️", type="primary", use_container_width=True):
+                # 暂存 API 配置到 session_state
+                st.session_state.temp_api_url = api_url.strip()
+                st.session_state.temp_api_key = api_key.strip()
+                st.session_state.setup_step = 3
+                st.rerun()
+
+    # ============================================================
+    # 第三步：字体配置
+    # ============================================================
+    elif st.session_state.setup_step == 3:
+        st.subheader("🔤 字体配置")
+        st.caption("翻译后的文本需要字体才能正确显示")
+
+        st.markdown("""
+        **如果你希望从头翻译**（游戏尚未被翻译过）：
+        - 需要在 `Font/Context/` 文件夹中放入 `.ttf` 字体文件
+        - `Font/Title/` 为可选，用于标题字体
+
+        **如果你已有字体文件夹**（如在零协会等已有翻译的基础上再次翻译）：
+        - 字体已经就位，可直接跳过此步骤
+        """)
+
+        # ---- Context 字体 ----
+        context_dir = os.path.join(BASE_DIR, "Font", "Context")
+        os.makedirs(context_dir, exist_ok=True)
+        context_fonts = glob_module.glob(os.path.join(context_dir, "*.ttf"))
+
+        st.markdown("##### 📄 Context 字体（必需）")
+        if context_fonts:
+            st.success(f"✅ 已配置：`{os.path.basename(context_fonts[0])}`")
+        else:
+            st.warning("⚠️ 未检测到字体文件")
+            ctx_font = st.file_uploader(
+                "上传 Context 字体 (.ttf)",
+                type=["ttf"],
+                key="setup_font_context",
+                help="选择 .ttf 字体文件，将复制到 Font/Context/ 目录"
+            )
+            if ctx_font:
+                font_path = os.path.join(context_dir, ctx_font.name)
+                with open(font_path, "wb") as f:
+                    f.write(ctx_font.read())
+                st.success(f"✅ `{ctx_font.name}` 已复制到 Font/Context/")
+                st.rerun()
+
+        # ---- Title 字体 ----
+        st.markdown("##### 📝 Title 字体（可选）")
+        title_dir = os.path.join(BASE_DIR, "Font", "Title")
+        # 只有上传了 Title 字体才创建目录
+        title_fonts = glob_module.glob(os.path.join(title_dir, "*.ttf")) if os.path.isdir(title_dir) else []
+
+        if title_fonts:
+            st.success(f"✅ 已配置：`{os.path.basename(title_fonts[0])}`")
+        else:
+            st.caption("可以不填，不会创建 Title 字体目录")
+            title_font = st.file_uploader(
+                "上传 Title 字体 (.ttf)",
+                type=["ttf"],
+                key="setup_font_title",
+                help="可选，选择 .ttf 标题字体，将复制到 Font/Title/ 目录"
+            )
+            if title_font:
+                os.makedirs(title_dir, exist_ok=True)
+                font_path = os.path.join(title_dir, title_font.name)
+                with open(font_path, "wb") as f:
+                    f.write(title_font.read())
+                st.success(f"✅ `{title_font.name}` 已复制到 Font/Title/")
+                st.rerun()
+
+        # 底部按钮
+        st.divider()
+        col_back, col_skip, col_done = st.columns([1, 1, 1])
+        with col_back:
+            if st.button("⬅️ 上一步", use_container_width=True):
+                st.session_state.setup_step = 2
+                st.rerun()
+        with col_skip:
+            if st.button("⏭️ 稍后再说", use_container_width=True):
                 st.session_state.setup_done = True
                 st.rerun()
         with col_done:
@@ -280,14 +361,18 @@ if not st.session_state.setup_done:
                 elif st.session_state.get("detected_input"):
                     cfg["file_paths"]["input_direction"] = st.session_state.detected_input
                     cfg["file_paths"]["output_direction"] = st.session_state.detected_output
-
                 save_config(cfg)
 
-                # 保存 API 配置
-                main_model["base_url"] = api_url.strip()
-                if api_key.strip():
-                    main_model["api_key"] = api_key.strip()
-                save_models(models)
+                # 保存 API 配置（从 session_state 或当前输入）
+                url = st.session_state.get("temp_api_url", "")
+                key = st.session_state.get("temp_api_key", "")
+                if url or key:
+                    models = load_models()
+                    main_model = models["models"].get("main", {})
+                    main_model["base_url"] = url
+                    if key:
+                        main_model["api_key"] = key
+                    save_models(models)
 
                 st.session_state.setup_done = True
                 st.rerun()
