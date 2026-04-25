@@ -87,6 +87,31 @@ def detect_game_directory():
     return None
 
 
+def _save_setup_progress():
+    """保存已完成的配置步骤（游戏路径 + API）"""
+    cfg = load_config()
+
+    # 保存游戏路径
+    if st.session_state.get("use_detected_path"):
+        cfg["file_paths"]["input_direction"] = st.session_state.detected_input
+        cfg["file_paths"]["output_direction"] = st.session_state.detected_output
+    elif st.session_state.get("detected_input"):
+        cfg["file_paths"]["input_direction"] = st.session_state.detected_input
+        cfg["file_paths"]["output_direction"] = st.session_state.detected_output
+    save_config(cfg)
+
+    # 保存 API 配置
+    url = st.session_state.get("temp_api_url", "")
+    key = st.session_state.get("temp_api_key", "")
+    if url or key:
+        models = load_models()
+        main_model = models["models"].get("main", {})
+        main_model["base_url"] = url
+        if key:
+            main_model["api_key"] = key
+        save_models(models)
+
+
 def is_first_launch():
     """检查是否首次启动（游戏路径未配置）"""
     try:
@@ -215,7 +240,7 @@ if not st.session_state.setup_done:
         st.divider()
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
-            if st.button("⏭️ 跳过，稍后配置", use_container_width=True):
+            if st.button("⏭️ 稍后配置", use_container_width=True):
                 st.session_state.setup_step = 2
                 st.rerun()
         with col3:
@@ -260,17 +285,11 @@ if not st.session_state.setup_done:
                 st.session_state.setup_step = 1
                 st.rerun()
         with col_skip:
-            if st.button("⏭️ 稍后再说", use_container_width=True):
-                if api_key.strip() or api_url.strip():
-                    main_model["base_url"] = api_url.strip()
-                    if api_key.strip():
-                        main_model["api_key"] = api_key.strip()
-                    save_models(models)
-                st.session_state.setup_done = True
+            if st.button("⏭️ 稍后配置", use_container_width=True):
+                st.session_state.setup_step = 3
                 st.rerun()
         with col_next:
             if st.button("下一步 ➡️", type="primary", use_container_width=True):
-                # 暂存 API 配置到 session_state
                 st.session_state.temp_api_url = api_url.strip()
                 st.session_state.temp_api_key = api_key.strip()
                 st.session_state.setup_step = 3
@@ -347,33 +366,13 @@ if not st.session_state.setup_done:
                 st.session_state.setup_step = 2
                 st.rerun()
         with col_skip:
-            if st.button("⏭️ 稍后再说", use_container_width=True):
+            if st.button("⏭️ 稍后配置", use_container_width=True):
+                _save_setup_progress()
                 st.session_state.setup_done = True
                 st.rerun()
         with col_done:
             if st.button("🚀 开始使用", type="primary", use_container_width=True):
-                cfg = load_config()
-
-                # 保存游戏路径
-                if st.session_state.get("use_detected_path"):
-                    cfg["file_paths"]["input_direction"] = st.session_state.detected_input
-                    cfg["file_paths"]["output_direction"] = st.session_state.detected_output
-                elif st.session_state.get("detected_input"):
-                    cfg["file_paths"]["input_direction"] = st.session_state.detected_input
-                    cfg["file_paths"]["output_direction"] = st.session_state.detected_output
-                save_config(cfg)
-
-                # 保存 API 配置（从 session_state 或当前输入）
-                url = st.session_state.get("temp_api_url", "")
-                key = st.session_state.get("temp_api_key", "")
-                if url or key:
-                    models = load_models()
-                    main_model = models["models"].get("main", {})
-                    main_model["base_url"] = url
-                    if key:
-                        main_model["api_key"] = key
-                    save_models(models)
-
+                _save_setup_progress()
                 st.session_state.setup_done = True
                 st.rerun()
 
