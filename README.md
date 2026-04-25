@@ -3,40 +3,20 @@
 LCLT 是一个基于 LLM 的《边狱巴士》游戏翻译工具。  
 专为高速翻译而生，多线程批量处理，增量翻译节省 API 费用。
 
-[![Release](https://img.shields.io/github/v/release/Killian2026/LimbusCompanyLLMTranslator)](https://github.com/Killian2026/LimbusCompanyLLMTranslator/releases)
-
 ## 亮点
 
 1. **翻译速度极快** — 多线程并行，四分钟内翻译开服至第八章全部文本
 2. **保留专有名词** — 术语库预替换 + 正则校验，防止歧义
 3. **增量翻译** — 每次只翻新增/变更内容，花费低
-4. **Streamlit GUI** — 图形化界面，无需命令行操作
-5. **分步启动向导** — 首次启动自动检测游戏目录，指引配置 API
 
 ## 快速开始
-
-### 方式一：使用 EXE（推荐）
-
-从 [Release](https://github.com/Killian2026/LimbusCompanyLLMTranslator/releases) 下载最新 `LCLT2_v*_exe.zip`，解压后：
-1. 首次启动会自动弹出配置向导，跟随指引即可
-2. 在 `Font/Context/` 中放入字体文件（`.ttf`）
-3. 运行 `LCLT2.exe`
-
-### 方式二：源码运行
 
 ```bash
 git clone https://github.com/Killian2026/LimbusCompanyLLMTranslator.git
 cd LimbusCompanyLLMTranslator
 pip install -r requirements.txt
-
-# 命令行模式
 python run.py
-
-# GUI 模式（推荐）
-python run_app.py
 ```
-
-首次启动会自动弹出配置向导，也可在侧栏随时修改。
 
 ## 配置说明
 
@@ -157,11 +137,7 @@ LCLT/
 │   │   ├── utils.py           # 工具函数
 │   │   └── writer.py          # 结果写入器
 │   └── main.py                # 主程序入口
-├── app.py                     # Streamlit GUI
-├── launcher.py                # EXE 入口
 ├── run.py                     # CLI 入口
-├── run_app.py                 # GUI 开发启动
-├── build_release.py           # 构建/发布脚本
 ├── config.json                # 主配置
 ├── models.json                # 模型配置
 ├── translation_configs.json   # 翻译策略
