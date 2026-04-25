@@ -6,7 +6,7 @@
       "file_patterns": [
         {"pattern": "BgmLyrics/*"}
       ],
-      "model": "story",
+      "model": "main",
       "prompt_file": "prompts/bgm_lyrics_prompt.txt"
     },
     {
@@ -21,7 +21,7 @@
         {"pattern": "EGOVoiceDig/*"},
         {"pattern": "PersonalityVoiceDlg/*"}
       ],
-      "model": "story",
+      "model": "main",
       "prompt_file": "prompts/story_prompt.txt",
       "terminology_file": "terminology/story.json"
     },
@@ -35,7 +35,7 @@
         {"pattern": "*DanteAbility*"},
         {"pattern": "*EGOgifty*"}  
       ],
-      "model": "skill",
+      "model": "main",
       "prompt_file": "prompts/skill_prompt.txt",
       "terminology_file": "terminology/skill.json"
     },
@@ -45,7 +45,7 @@
       "file_patterns": [
         {"pattern": "*"}
       ],
-      "model": "origin",
+      "model": "main",
       "prompt_file": "prompts/default_prompt.txt",
       "terminology_file": "terminology/default.json"
     }

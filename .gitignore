@@ -13,3 +13,8 @@ build_release.py
 /Font/Title/
 run.bat
 .gh_token
+/test/
+test_run.py
+.claude/
+jp/
+run_app.py

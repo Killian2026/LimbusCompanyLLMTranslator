@@ -1,61 +1,86 @@
 import os
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.config.loader import config_loader
 from src.core.utils import FileUtils
 
 class TextExtractor:
     """文本提取器，用于提取游戏文件中的文本内容"""
-    
+
     def __init__(self):
         self.config = config_loader.get_config()
         self.blacklist = config_loader.get_blacklist()
-    
+
+    def _read_file(self, filepath: str) -> Any:
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            content = f.read()
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return None
+
     def extract_files_content(self, dir_key: str, lang: str) -> Dict[str, Dict[str, Any]]:
         """
         根据配置文件中的路径设置，递归提取指定语言文件夹下所有文件的内容
-        
+
         参数:
         dir_key: 配置文件中file_paths的键名
         lang: 语言代码
-        
+
         返回:
         包含文件路径和内容的字典，键为相对路径
         """
         game_dir = self.config["file_paths"][dir_key]
         lang_dir = os.path.join(game_dir, lang)
 
-        files_content = {}
-        
+        # 第一遍：只遍历目录，收集文件路径，保持 os.walk 原始顺序
+        file_entries: List[Tuple[str, str, str]] = []  # (filepath, file_id, modified_filename)
+
         for dirpath, _, filenames in os.walk(lang_dir):
             for filename in filenames:
-                filepath = os.path.join(dirpath, filename)
-
                 if not filename.lower().endswith('.json'):
                     continue
-                
-                rel_path = os.path.relpath(dirpath, lang_dir)  # 未修改的相对路径
-                modified_filename = FileUtils.modify_filename(filename)  # 去掉前缀的文件名
 
-                # 构建ID，包含去掉前缀的文件名和相对路径
+                filepath = os.path.join(dirpath, filename)
+                rel_path = os.path.relpath(dirpath, lang_dir)
+                modified_filename = FileUtils.modify_filename(filename)
+
                 if rel_path == '.':
                     file_id = modified_filename
                 else:
                     file_id = os.path.join(rel_path, modified_filename).replace('/', '\\')
-                
-                with open(filepath, 'r', encoding='utf-8-sig') as f:
-                    content = f.read()
-                    try:
-                        content_json = json.loads(content)
-                    except json.JSONDecodeError:
-                        content_json = None
-                    
-                    files_content[file_id] = {
-                        "filename": modified_filename,  # 使用修改后的文件名
-                        'full_path': filepath,
-                        'content': content_json,
-                    }
-                    
+
+                file_entries.append((filepath, file_id, modified_filename))
+
+        # 第二遍：并行读取并解析 JSON，结果带索引以便按序组装
+        max_workers = min(32, max(1, len(file_entries)))
+        results: List[Tuple[int, str, str, str, Any]] = []  # (index, file_id, modified_filename, filepath, content)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_index = {
+                executor.submit(self._read_file, entry[0]): i
+                for i, entry in enumerate(file_entries)
+            }
+            for future in as_completed(future_to_index):
+                i = future_to_index[future]
+                filepath, file_id, modified_filename = file_entries[i]
+                try:
+                    content = future.result()
+                except Exception:
+                    content = None
+                results.append((i, file_id, modified_filename, filepath, content))
+
+        # 按原索引排序，构建与顺序版完全一致的 dict
+        results.sort(key=lambda x: x[0])
+        files_content = {}
+        for _, file_id, modified_filename, filepath, content in results:
+            files_content[file_id] = {
+                "filename": modified_filename,
+                'full_path': filepath,
+                'content': content,
+            }
+
         return files_content
     
     def find_new_content(self, origin: Dict[str, Dict[str, Any]], existing: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:

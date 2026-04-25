@@ -249,14 +249,16 @@ class Translator:
         
         return True, success_count, results
     
-    def batch_translate_with_multiple_strategies(self, tasks: List[Dict[str, Any]], max_chars_per_batch: int = None) -> Dict[int, str]:
+    def batch_translate_with_multiple_strategies(self, tasks: List[Dict[str, Any]], max_chars_per_batch: int = None,
+                                                  progress_callback = None) -> Dict[int, str]:
         """
         批量翻译多个使用不同策略的任务
-        
+
         参数:
         tasks: 任务列表，每个任务包含text、api_key、base_url、model、temperature、enable_thinking、prompt_file、index
         max_chars_per_batch: 每批最大字符数
-        
+        progress_callback: 进度回调，签名 callback(completed, total)
+
         返回:
         翻译结果字典，键为任务索引，值为翻译后的文本
         """
@@ -440,9 +442,9 @@ class Translator:
                             task_index = group_indices[orig_idx]
                             results_map[task_index] = translated_text
                         completed_tasks += len(batch_indices)
-                        
-                        # 更新进度条
                         pbar.update(len(batch_indices))
+                        if progress_callback:
+                            progress_callback(completed_tasks, total_tasks)
                         
                         # 计算每秒请求量并显示
                         current_time = time.time()
