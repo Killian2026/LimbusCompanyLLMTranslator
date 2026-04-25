@@ -1,170 +1,174 @@
 # LCLT (Limbus Company LLM Translator)
-LCLT 是一个基于 LLM 的 Limbus Company 游戏翻译工具，使用官方的翻译接口。  
-专为高速翻译而生，超多线程翻译。  
 
-暂不成熟，代码由AI重写过，欢迎反馈。  
-# 亮点
-1. 翻译速度极快，保守测试一秒可以翻译几万字符，四分钟内翻译开服至第八章全部文本（deepseek-chat）。   
-2. 保留专有名词，防止歧义。    
-3. 增量翻译，每次只翻一点点，花费低。  
-# 快速开始
-从 Release 下载最新版本的 ZIP 文件，解压。  
-`config.json` 中把`<Puts your Game Directory Here>`替换为您的游戏所在目录。  
-`models.json` 中填写您所使用的 LLM （OpenAI 兼容），每个部分都要填，这是一个Deepseek的示例：  
-```json
-    "skill": {
-      "api_key": "sk-********************************",
-      "base_url": "https://api.deepseek.com/chat/completions",
-      "model": "deepseek-chat",
-      "temperature": 0.1,
-      "enable_thinking": false
-    }
+LCLT 是一个基于 LLM 的《边狱巴士》游戏翻译工具。  
+专为高速翻译而生，多线程批量处理，增量翻译节省 API 费用。
+
+[![Release](https://img.shields.io/github/v/release/Killian2026/LimbusCompanyLLMTranslator)](https://github.com/Killian2026/LimbusCompanyLLMTranslator/releases)
+
+## 亮点
+
+1. **翻译速度极快** — 多线程并行，四分钟内翻译开服至第八章全部文本
+2. **保留专有名词** — 术语库预替换 + 正则校验，防止歧义
+3. **增量翻译** — 每次只翻新增/变更内容，花费低
+4. **Streamlit GUI** — 图形化界面，无需命令行操作
+5. **分步启动向导** — 首次启动自动检测游戏目录，指引配置 API
+
+## 快速开始
+
+### 方式一：使用 EXE（推荐）
+
+从 [Release](https://github.com/Killian2026/LimbusCompanyLLMTranslator/releases) 下载最新 `LCLT2_v*_exe.zip`，解压后：
+1. 首次启动会自动弹出配置向导，跟随指引即可
+2. 在 `Font/Context/` 中放入字体文件（`.ttf`）
+3. 运行 `LCLT2.exe`
+
+### 方式二：源码运行
+
+```bash
+git clone https://github.com/Killian2026/LimbusCompanyLLMTranslator.git
+cd LimbusCompanyLLMTranslator
+pip install -r requirements.txt
+
+# 命令行模式
+python run.py
+
+# GUI 模式（推荐）
+python run_app.py
 ```
-在 `Font/Context/` 中放入您希望的字体文件（`.ttf` 格式）。   
-然后启动 `LCLT2.exe` 即可。  
-# 进阶玩法
-## 配置
-`config.json` 中填写基础配置:  
+
+首次启动会自动弹出配置向导，也可在侧栏随时修改。
+
+## 配置说明
+
+### `config.json` — 基础配置
+
 ```json
 {
   "translation_settings": {
-    "origin_language": "jp",  //原始语言，推荐日语
-    "target_direction": "LCLT_zh", //把翻译后的文本写到哪个文件夹中，会根据这个文件夹增量更新
-    "max_workers": 500,  //最大线程数 (如果服务商，网络可以，建议设置为 200~2000，否则10以下）
-    "max_chars_per_batch": 2000, //每次请求发送多少文字，建议根据模型输入上限折算，一般 2000 较好。  
-    "max_retries": 4, //API请求失败后的最大重试次数（如果仍然失败则复制原文）
-    "timeout": 120 //每个API请求的最大等待时间（秒）
+    "origin_language": "jp",
+    "target_direction": "LCLT_zh",
+    "max_workers": 50,
+    "max_chars_per_batch": 8000,
+    "max_retries": 4,
+    "timeout": 60
   },
-  "file_paths": {//两个位置配置
-    "input_direction": "<路径>/Limbus Company/LimbusCompany_Data/Assets/Resources_moved/Localize",
-    "output_direction": "<路径>/Limbus Company/LimbusCompany_Data/Lang"
-  },
-  "config_files": {//使用的配置文件
-    "models": "models.json",
-    "translation_configs": "translation_configs.json"
+  "file_paths": {
+    "input_direction": "<游戏目录>/LimbusCompany_Data/Assets/Resources_moved/Localize",
+    "output_direction": "<游戏目录>/LimbusCompany_Data/Lang"
   },
   "options": {
-    "keep_backup_files": false, //开启备份，建议关闭
-    "confirm_before_translation": true //在翻译前确认，建议开启
+    "keep_backup_files": true,
+    "confirm_before_translation": true,
+    "generate_debug_file": false
   }
 }
 ```
-`models` 填写模型配置：
-```json
-"origin": { //小名为origin，在translation_configs.json将使用这个名字
-  "api_key": "API KEY",
-  "base_url": "URL", 
-  "model": "Model Name",
-  "temperature": 0.3,
-  "enable_thinking": false //目前思考未测试，应该可以
-},
-```
-`translation_configs.json` 中填写翻译策略配置：
-```json
-{ //一个翻译策略
-  "name": "story", //翻译策略名称
-  "priority": 2, //检索时的优先级，小优先级的将先检索。  
-  "file_patterns": [
-    // pattern 为匹配文件路径
-    // extract_fields 为提取的字段，可选，默认全部提取
-    {"pattern": "*BattleKeywords*", "extract_fields": ["flavor", "name"]},
-    {"pattern": "*Enemies*"},
-    ...
-  ],
-  "model": "story", //使用模型story
-  "prompt_file": "prompts/story_prompt.txt", //使用的提示词
-  "terminology_file": "terminology/story.json" //使用的术语库（可选）
-},
-```
-## 提示词
-可以在 `prompts/` 中填写提示词。  
-## 术语库
-`terminology/` 中填写术语库，在翻译前将会尝试把可用的术语先替换。
 
-### 术语库配置
-每个翻译策略可以指定自己的术语库文件，通过在 `translation_configs.json` 中添加 `terminology_file` 字段：
+| 参数 | 说明 |
+|------|------|
+| `origin_language` | 源语言，建议 `jp` |
+| `target_direction` | 翻译输出目录名 |
+| `max_workers` | 最大线程数（建议 20-100） |
+| `max_chars_per_batch` | 每次 API 请求的字符上限 |
+| `max_retries` | API 失败重试次数 |
+| `timeout` | API 超时秒数 |
+
+### `models.json` — 模型配置
 
 ```json
 {
-  "name": "story",
-  "priority": 2,
-  "file_patterns": [
-    {"pattern": "*BattleKeywords*", "extract_fields": ["flavor", "name"]},
-    {"pattern": "*Enemies*"}
-  ],
-  "model": "story",
-  "prompt_file": "prompts/story_prompt.txt",
-  "terminology_file": "terminology/story.json" // 每个策略可以指定不同的术语库
+  "models": {
+    "main": {
+      "api_key": "sk-xxxxxxxx",
+      "base_url": "https://api.deepseek.com/chat/completions",
+      "model": "deepseek-v4-flash",
+      "temperature": 0,
+      "enable_thinking": false
+    }
+  }
 }
 ```
 
-### 术语库格式
-术语库文件的格式为：
+支持 OpenAI 兼容接口，可添加多个模型供不同翻译策略使用。
+
+### `translation_configs.json` — 翻译策略
+
+```json
+{
+  "translation_strategies": [
+    {
+      "name": "story",
+      "priority": 2,
+      "file_patterns": [
+        {"pattern": "*BattleKeywords*", "extract_fields": ["flavor", "name"]},
+        {"pattern": "*Enemies*"},
+        {"pattern": "StoryData/*"}
+      ],
+      "model": "main",
+      "prompt_file": "prompts/story_prompt.txt",
+      "terminology_file": "terminology/story.json"
+    }
+  ]
+}
+```
+
+- `priority` — 越小越优先匹配，`999` 为兜底策略
+- `file_patterns` — glob 匹配规则，`extract_fields` 可选指定提取字段
+- `model` — 引用 `models.json` 中的模型名称
+- `prompt_file` — 翻译提示词文件
+- `terminology_file` — 术语库文件（可选）
+
+## 提示词
+
+在 `prompts/` 中编写翻译提示词，策略通过 `prompt_file` 引用。
+
+## 术语库
+
+格式为 `terminology/*.json`，翻译前先替换术语再发送 API：
 
 ```json
 {
   "terminology": {
     "ドンキホーテ": "堂吉诃德",
-    "ファウスト": "浮士德",
-    "グレゴール": "格里高尔"
+    "ファウスト": "浮士德"
   }
 }
 ```
 
-如果翻译策略没有指定术语库文件，系统会默认使用 `terminology.json` 文件。  
-
-# 计划
-- [x] 基础术语表功能
-- [ ] 使用更智能的术语表。  
-- [x] 按照文件名与json键的文本分类翻译。  
-- [x] 多线程翻译
-- [ ] 使得该项目兼容性增加，可以翻译任何类似接口的软件。
-- [ ] 让LLM记录部分剧情以增强翻译
-- [ ] 增加GUI
-- [ ] 从系统直接获取字体
-
-# 项目
 ## 翻译流程
-1. 递归提取所有`LimbusCompany_Data/Assets/Resources_moved/Localize` 中指定语言的内容。
-2. 根据最内层有 `"id"` 的块，比对增量差异。  
-3. 集中打包交给 LLM 翻译。  
-4. 解析 LLM 回复，将翻译结果写回文件。  
+
+1. 递归提取 `Localize` 目录中指定语言的文本
+2. 根据含 `"id"` 的块做增量对比
+3. 按策略分批，术语预替换后交由 LLM 翻译
+4. 解析回复写回 `Lang` 目录
 
 ## 项目结构
+
 ```plain
 LCLT/
-├── Font/                    
-│   └── Context/              
-│       ...                  # 此处存放字体 (.ttf文件)
-|
-├── prompts/                 
-│   ...                      # 此处存放翻译提示词 (.txt文件)
-|
-├── terminology/             
-│   ...                      # 此处存放术语库 (.json文件)
-│   ├── default.json         # 默认术语库
-│   ├── story.json           # 故事文本术语库
-│   └── skill.json           # 技能文本术语库
-│   
-├── src/                     # 源代码目录
-│   ├── config/              
-│   │   └── loader.py        # 配置加载器
-│   ├── core/                
-│   │   ├── extractor.py     # 文本提取器
-│   │   ├── translator.py    # 翻译器
-│   │   ├── utils.py         # 工具函数
-│   │   └── writer.py        # 结果写入器
-│   └── main.py              # 主程序入口
-├── BlackList.json           # 黑名单配置
-├── config.json              # 主配置文件
-├── models.json              # 模型配置文件
-├── requirements.txt         # 依赖包列表
-├── run.py                   # 运行脚本 (Python)
-├── terminology.json         # 术语库
-|── translation_configs.json # 翻译策略配置
-├── README.md                
-└── LICENSE
+├── Font/Context/              # 字体文件 (.ttf)
+├── prompts/                   # 翻译提示词 (.txt)
+├── terminology/               # 术语库 (.json)
+├── src/
+│   ├── config/loader.py       # 配置加载器
+│   ├── core/
+│   │   ├── extractor.py       # 文本提取器
+│   │   ├── translator.py      # 翻译器
+│   │   ├── utils.py           # 工具函数
+│   │   └── writer.py          # 结果写入器
+│   └── main.py                # 主程序入口
+├── app.py                     # Streamlit GUI
+├── launcher.py                # EXE 入口
+├── run.py                     # CLI 入口
+├── run_app.py                 # GUI 开发启动
+├── build_release.py           # 构建/发布脚本
+├── config.json                # 主配置
+├── models.json                # 模型配置
+├── translation_configs.json   # 翻译策略
+├── BlackList.json             # 黑名单
+└── requirements.txt
 ```
 
-# 致谢
-- 部分翻译提示词参考了 [零协会](https://github.com/LocalizeLimbusCompany/LocalizeLimbusCompany) 的翻译成果，特别感谢。  
+## 致谢
+
+- 部分翻译提示词参考了 [零协会](https://github.com/LocalizeLimbusCompany/LocalizeLimbusCompany) 的翻译成果，特别感谢。
