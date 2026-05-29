@@ -1,3 +1,4 @@
+将会尽快重构代码
 # LCLT (Limbus Company LLM Translator)
 
 LCLT 是一个基于 LLM 的《边狱巴士》游戏翻译工具。  
